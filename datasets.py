@@ -11,7 +11,7 @@ from nltk.tokenize import sent_tokenize
 from nltk.corpus import stopwords 
 
 import numpy as np
-import os, glob, cv2, sys, torch, pdb, random
+import os, glob, sys, torch, pdb, random
 from torch.utils.data import Dataset
 
 import pdb, sys, os, time
