@@ -1,16 +1,16 @@
 from __future__ import print_function
 from tqdm import tqdm
 # from tqdm import tqdm_gui
-import matplotlib
+# import matplotlib
 # matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import numpy as np
-import sys, pdb, os, shutil, pickle
-from pprint import pprint 
+import os, shutil, pickle
+#from pprint import pprint 
 
 import torch
 import torch.optim as optim
-import torch.nn as nn
+# import torch.nn as nn
 
 # it is a little tricky on run SummaryWriter by installing a suitable version of pytorch. so if you are able to import SummaryWriter from torch.utils.tensorboard, this script will record summaries. Otherwise it would not.
 try:
@@ -22,9 +22,9 @@ except:
 from model import Word2Vec_neg_sampling
 from utils_modified import count_parameters
 from datasets import word2vec_dataset
-from  config import *
-from test import print_nearest_words
-from utils_modified import q
+import config as cfg
+# from test import print_nearest_words
+# from utils_modified import q
 
 # for tensorboard to work properly on embeddings projections
 import tensorflow as tf
@@ -32,30 +32,31 @@ import tensorboard as tb
 tf.io.gfile = tb.compat.tensorflow_stub.io.gfile
 
 # remove MODEL_DIR if it exists
-if os.path.exists(MODEL_DIR):
-    shutil.rmtree(MODEL_DIR)
+if os.path.exists(cfg.MODEL_DIR):
+    shutil.rmtree(cfg.MODEL_DIR)
 # create MODEL_DIR    
-os.makedirs(MODEL_DIR)
+os.makedirs(cfg.MODEL_DIR)
 
 # SUMMARY_DIR is the path of the directory where the tensorboard SummaryWriter files are written
 if write_summary:
-    if os.path.exists(SUMMARY_DIR):
+    if os.path.exists(cfg.SUMMARY_DIR):
         # the directory is removed, if it already exists
-        shutil.rmtree(SUMMARY_DIR)
+        shutil.rmtree(cfg.SUMMARY_DIR)
 
-    writer = SummaryWriter(SUMMARY_DIR) # this command automatically creates the directory at SUMMARY_DIR
+    writer = SummaryWriter(cfg.SUMMARY_DIR) # this command automatically creates the directory at SUMMARY_DIR
     summary_counter = 0
 
 # make training data
-if not os.path.exists(PREPROCESSED_DATA_PATH):
-    train_dataset = word2vec_dataset(DATA_SOURCE, CONTEXT_SIZE, FRACTION_DATA, SUBSAMPLING, SAMPLING_RATE)
+if not os.path.exists(cfg.PREPROCESSED_DATA_PATH):
+    train_dataset = word2vec_dataset(cfg.DATA_SOURCE, cfg.CONTEXT_SIZE, cfg.FRACTION_DATA,
+                                     cfg.SUBSAMPLING, cfg.SAMPLING_RATE)
 
-    if not os.path.exists(PREPROCESSED_DATA_DIR):
-        os.makedirs(PREPROCESSED_DATA_DIR)
+    if not os.path.exists(cfg.PREPROCESSED_DATA_DIR):
+        os.makedirs(cfg.PREPROCESSED_DATA_DIR)
 
     # pickle dump
     print('\ndumping pickle...')
-    outfile = open(PREPROCESSED_DATA_PATH,'wb')
+    outfile = open(cfg.PREPROCESSED_DATA_PATH,'wb')
     pickle.dump(train_dataset, outfile)
     outfile.close()
     print('pickle dumped\n')
@@ -63,7 +64,7 @@ if not os.path.exists(PREPROCESSED_DATA_PATH):
 else:
     # pickle load
     print('\nloading pickle...')
-    infile = open(PREPROCESSED_DATA_PATH,'rb')
+    infile = open(cfg.PREPROCESSED_DATA_PATH,'rb')
     train_dataset = pickle.load(infile)
     infile.close()
     print('pickle loaded\n')
@@ -72,7 +73,8 @@ vocab = train_dataset.vocab
 word_to_ix = train_dataset.word_to_ix
 ix_to_word = train_dataset.ix_to_word
 
-train_loader = torch.utils.data.DataLoader(train_dataset, batch_size = BATCH_SIZE, shuffle = not True)
+train_loader = torch.utils.data.DataLoader(train_dataset, batch_size = cfg.BATCH_SIZE,
+                                           shuffle = not True)
 print('len(train_dataset): ', len(train_dataset))
 print('len(train_loader): ', len(train_loader))
 print('len(vocab): ', len(vocab), '\n')
@@ -84,15 +86,16 @@ noise_dist = torch.from_numpy(unigram_dist**(0.75)/np.sum(unigram_dist**(0.75)))
 
 losses = []
 
-model = Word2Vec_neg_sampling(EMBEDDING_DIM, len(vocab), DEVICE, noise_dist, NEGATIVE_SAMPLES).to(DEVICE)
+model = Word2Vec_neg_sampling(cfg.EMBEDDING_DIM, len(vocab), cfg.DEVICE, noise_dist,
+                              cfg.NEGATIVE_SAMPLES).to(cfg.DEVICE)
 print('\nWe have {} Million trainable parameters here in the model'.format(count_parameters(model)))
 
 # optimizer = optim.SGD(model.parameters(), lr = 0.008, momentum=0.9)
-optimizer = optim.Adam(model.parameters(), lr = LR)
+optimizer = optim.Adam(model.parameters(), lr = cfg.LR)
 # print(model, '\n')
 
-for epoch in tqdm(range(NUM_EPOCHS)):
-    print('\n===== EPOCH {}/{} ====='.format(epoch + 1, NUM_EPOCHS))    
+for epoch in tqdm(range(cfg.NUM_EPOCHS)):
+    print('\n===== EPOCH {}/{} ====='.format(epoch + 1, cfg.NUM_EPOCHS))    
     # print('\nTRAINING...')
 
     # model.train()
@@ -101,8 +104,8 @@ for epoch in tqdm(range(NUM_EPOCHS)):
         
         model.train()
 
-        x_batch           = x_batch.to(DEVICE)
-        y_batch           = y_batch.to(DEVICE)
+        x_batch           = x_batch.to(cfg.DEVICE)
+        y_batch           = y_batch.to(cfg.DEVICE)
         
         optimizer.zero_grad()
         loss = model(x_batch, y_batch)
@@ -116,21 +119,23 @@ for epoch in tqdm(range(NUM_EPOCHS)):
             writer.add_scalar(f'batch_loss', loss.item(), summary_counter)
             summary_counter += 1
 
-        if batch_idx%DISPLAY_EVERY_N_BATCH == 0 and DISPLAY_BATCH_LOSS:
+        if batch_idx % cfg.DISPLAY_EVERY_N_BATCH == 0 and cfg.DISPLAY_BATCH_LOSS:
             print(f'Batch: {batch_idx+1}/{len(train_loader)}, Loss: {loss.item()}')    
             # show 5 closest words to some test words
-            print_nearest_words(model, TEST_WORDS, word_to_ix, ix_to_word, top = 5)        
+            # print_nearest_words(model, TEST_WORDS, word_to_ix, ix_to_word, top = 5)        
 
     # write embeddings every SAVE_EVERY_N_EPOCH epoch
-    if epoch%SAVE_EVERY_N_EPOCH == 0:      
-        writer.add_embedding(model.embeddings_input.weight.data, metadata=[ix_to_word[k] for k in range(len(ix_to_word))], global_step=epoch)
+    if epoch % cfg.SAVE_EVERY_N_EPOCH == 0:      
+        writer.add_embedding(model.embeddings_input.weight.data,
+                             metadata=[ix_to_word[k] for k in range(len(ix_to_word))],
+                             global_step=epoch)
 
         torch.save({'model_state_dict': model.state_dict(), 
                     'losses': losses,
                     'word_to_ix': word_to_ix,
                     'ix_to_word': ix_to_word
                     },                  
-                    '{}/model{}.pth'.format(MODEL_DIR, epoch))
+                    '{}/model{}.pth'.format(cfg.MODEL_DIR, epoch))
 
 plt.figure(figsize = (50, 50))
 plt.xlabel("batches")
@@ -164,7 +169,7 @@ for idx, coord in enumerate(tsne):
 # test_words = ['sun', 'moon', 'earth', 'while', 'open', 'run', 'distance', 'energy', 'coal', 'exploit']
 # test_words = ['amazing', 'beautiful', 'work', 'breakfast', 'husband', 'hotel', 'quick', 'cockroach']
 
-test_words = TEST_WORDS_VIZ
+test_words = cfg.TEST_WORDS_VIZ
 print('test_words: ', test_words)
 
 plt.figure(figsize = (50, 50))

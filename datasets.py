@@ -1,26 +1,26 @@
 from __future__ import print_function
 
 import nltk
-nltk.download('punkt')
+nltk.download('floresta')
 nltk.download('stopwords')
 nltk.download('wordnet')
 
 from nltk.stem.wordnet import WordNetLemmatizer 
 from nltk.tokenize import word_tokenize
-from nltk.tokenize import sent_tokenize
+# from nltk.tokenize import sent_tokenize
 from nltk.corpus import stopwords 
 
 import numpy as np
-import os, glob, sys, torch, pdb, random
+import torch
 from torch.utils.data import Dataset
 
-import pdb, sys, os, time
-import pandas as pd
+# import time
+# import pandas as pd
 from tqdm import tqdm
 
 lem = WordNetLemmatizer()
 
-from utils_modified import q
+# from utils_modified import q
 
 class word2vec_dataset(Dataset):
     def __init__(self, DATA_SOURCE, CONTEXT_SIZE, FRACTION_DATA, SUBSAMPLING, SAMPLING_RATE):
